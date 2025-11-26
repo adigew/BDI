@@ -19,3 +19,46 @@ docs/src/**/*
 *.pt
 *.pth
 checkpoints
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environment
+venv/
+.env/
+bit_env/
+*.env
+
+# IDE ve Editör Dosyaları
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Log ve Cache Dosyaları
+*.log
+*.cache
+
+# Veri ve Model Dosyaları
+checkpoints/
+*.pt
+*.pth
+*.h5
+*.ckpt
+
+# Sistem Dosyaları
+.DS_Store
+Thumbs.db
+
+# Streamlit Cache
+.streamlit/
+
+# Diğer
+*.zip
+*.tar.gz
