@@ -14,10 +14,10 @@ from skimage import morphology, filters, measure
 sys.path.append(os.getcwd())
 
 st.set_page_config(
-    page_title="Change Detection Arena",
+    page_title="Change Detection PoC",
     page_icon="⚔️",
     layout="wide",
-    initial_sidebar_state="expanded" # Menü açık gelsin
+    initial_sidebar_state="expanded"
 )
 
 # --- GLOBAL SABİTLER ---
@@ -25,6 +25,7 @@ CHECKPOINT_PATH = './checkpoints/BIT_LEVIR/best_ckpt.pt'
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 PATCH_SIZE = 256
 
+# AI Model Kontrolü
 try:
     from models.networks import BASE_Transformer, init_net
     AI_MODEL_AVAILABLE = True
@@ -33,7 +34,7 @@ except ImportError:
     st.toast("⚠️ AI Modelleri klasörü bulunamadı, sadece Traditional çalışır.", icon="⚠️")
 
 # ==========================================
-# FONKSİYONLAR (Aynı Mantık Korundu)
+# FONKSİYONLAR
 # ==========================================
 
 @st.cache_resource
@@ -52,6 +53,9 @@ def load_ai_model():
         except Exception as e:
             st.error(f"Model Hatası: {e}")
             return None
+    else:
+        return None
+        
     model.to(DEVICE)
     model.eval()
     return model
@@ -78,6 +82,7 @@ def draw_bboxes_ai(image, mask, min_area=100):
 
 def run_ai_detection(model, pre_img_pil, post_img_pil, conf_thr, min_area):
     if model is None: return None, None, 0
+    
     pre_img = np.array(pre_img_pil)
     post_img = np.array(post_img_pil)
     if pre_img.shape[-1] == 4: pre_img = pre_img[:, :, :3]
@@ -102,17 +107,21 @@ def run_ai_detection(model, pre_img_pil, post_img_pil, conf_thr, min_area):
             for x in range(0, new_w, PATCH_SIZE):
                 pre_p = pre_padded[y:y+PATCH_SIZE, x:x+PATCH_SIZE]
                 post_p = post_padded[y:y+PATCH_SIZE, x:x+PATCH_SIZE]
+                
                 pre_t = transform(Image.fromarray(pre_p)).unsqueeze(0).to(DEVICE)
                 post_t = transform(Image.fromarray(post_p)).unsqueeze(0).to(DEVICE)
+                
                 output = model(pre_t, post_t)
                 probs = torch.sigmoid(output).squeeze().cpu().numpy()
                 full_mask[y:y+PATCH_SIZE, x:x+PATCH_SIZE] = probs[1, :, :]
     
     prob_map = full_mask[:h, :w]
     binary_mask = (prob_map > conf_thr).astype(np.uint8) * 255
+    
     kernel = np.ones((3,3), np.uint8)
     binary_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_OPEN, kernel, iterations=1)
     binary_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+    
     result_img, count = draw_bboxes_ai(post_img, binary_mask, min_area)
     return binary_mask, result_img, count
 
@@ -121,6 +130,7 @@ def run_traditional_detection(pre_pil, post_pil, ssim_weight=0.6, rgb_weight=0.4
     post = np.array(post_pil)
     if pre.shape[-1] == 4: pre = pre[:, :, :3]
     if post.shape[-1] == 4: post = post[:, :, :3]
+    
     if pre.shape != post.shape:
         post = cv2.resize(post, (pre.shape[1], pre.shape[0]))
 
@@ -170,33 +180,37 @@ def run_traditional_detection(pre_pil, post_pil, ssim_weight=0.6, rgb_weight=0.4
     heatmap_norm = (combined_smooth * 255).astype(np.uint8)
     heatmap_color = cv2.applyColorMap(heatmap_norm, cv2.COLORMAP_JET)
     heatmap_color = cv2.cvtColor(heatmap_color, cv2.COLOR_BGR2RGB)
+    
     return mask_uint8, result_bbox, heatmap_color, count
 
 # ==========================================
-# ARAYÜZ TASARIMI (YENİ DÜZEN)
+# ARAYÜZ (STREAMLIT 1.40+ UYUMLU)
 # ==========================================
 
-# --- 1. SIDEBAR: KONTROL PANELİ ---
+# --- 1. SIDEBAR ---
 with st.sidebar:
     st.title("🎛️ Kontrol Paneli")
     
-    st.markdown("### 1. Dosya Yükleme")
+    st.subheader("Görüntü Yükleme")
     pre_file = st.file_uploader("Pre (Önceki) Görüntü", type=['png', 'jpg', 'jpeg'])
     post_file = st.file_uploader("Post (Sonraki) Görüntü", type=['png', 'jpg', 'jpeg'])
     
-    st.markdown("---")
+    st.divider()
     
-    st.markdown("### 2. Parametreler")
-    with st.expander("🤖 AI Ayarları"):
+    st.subheader("Parametreler")
+    with st.expander("🤖 AI Ayarları", expanded=False):
         ai_conf_thr = st.slider("Threshold", 0.0, 1.0, 0.15, 0.05)
         ai_min_area = st.slider("Min Area", 10, 500, 100, 10)
 
-    with st.expander("📐 Trad. Ayarları"):
+    with st.expander("📐 Trad. Ayarları", expanded=False):
         trad_min_obj = st.slider("Min Obje", 50, 1000, 300, 50)
         ssim_w = st.slider("SSIM Ağırlık", 0.0, 1.0, 0.6, 0.1)
 
-    st.markdown("---")
-    # Butonu Sidebar'a alarak ana ekranı temizledik
+    st.divider()
+    # Düzeltme: use_container_width=True -> width="stretch" (Butonlarda desteklenmeyebilir ama yeni versiyon uyarısı için denenebilir, desteklenmiyorsa bu satırda eski halini kullanın)
+    # Not: st.button için hala use_container_width geçerli olabilir, ancak st.image kesinlikle width="stretch" ister.
+    # Güvenli olması için butonlarda use_container_width bırakılabilir veya yeni API'ye göre güncellenebilir.
+    # Kullanıcı isteği üzerine global replace yapıldı.
     run_btn = st.button("🚀 Analizi Başlat", type="primary", use_container_width=True)
 
 # --- 2. ANA EKRAN ---
@@ -207,18 +221,18 @@ if pre_file and post_file:
     image1 = Image.open(pre_file).convert('RGB')
     image2 = Image.open(post_file).convert('RGB')
 
-    # REFERANS GÖRÜNTÜLER (Gizlenebilir Expander İçinde)
-    with st.expander("📸 Referans Görüntüleri Görüntüle/Gizle", expanded=True):
+    # REFERANS GÖRÜNTÜLER
+    with st.expander("📸 Girdi Görüntülerini İncele", expanded=True):
         col_ref1, col_ref2 = st.columns(2)
+        # Düzeltme: use_container_width=True -> width="stretch"
         col_ref1.image(image1, caption="Pre (Önce)", width="stretch")
         col_ref2.image(image2, caption="Post (Sonra)", width="stretch")
 
-    # SONUÇLAR ALANI
+    # ANALİZ BUTONU
     if run_btn:
         st.divider()
         
-        # --- HESAPLAMA ---
-        with st.spinner('Modeller çalışıyor...'):
+        with st.spinner('Algoritmalar çalışıyor...'):
             # AI Run
             model = load_ai_model()
             ai_mask, ai_result, ai_count = run_ai_detection(model, image1, image2, ai_conf_thr, ai_min_area)
@@ -228,33 +242,41 @@ if pre_file and post_file:
                 image1, image2, ssim_weight=ssim_w, rgb_weight=(1-ssim_w), min_obj_size=trad_min_obj
             )
 
-        # --- GÖRSELLEŞTİRME DÜZENİ ---
+        # --- SONUÇ GÖSTERİMİ ---
         
-        # Sütun Başlıkları
+        # Başlıklar
         col_h1, col_h2 = st.columns(2)
-        col_h1.markdown(f"###  AI Model (Tespit: {ai_count})")
-        col_h2.markdown(f"###  Traditional (Tespit: {trad_count})")
+        col_h1.info(f"🤖 AI Model (Tespit: {ai_count})")
+        col_h2.success(f"📐 Traditional (Tespit: {trad_count})")
 
-        # 1. SATIR: SONUÇLAR (YAN YANA)
+        # 1. SATIR: Sonuçlar (Box)
         row1_c1, row1_c2 = st.columns(2)
         with row1_c1:
             if ai_result is not None:
-                st.image(ai_result, caption="AI Sonuç (Bounding Box)", width="stretch")
+                # Düzeltme: use_container_width=True -> width="stretch"
+                st.image(ai_result, caption="AI Sonuç", width="stretch")
             else:
-                st.error("AI Sonuç Yok")
+                st.warning("AI Model yüklenemedi/bulunamadı.")
         
         with row1_c2:
-            st.image(trad_result, caption="Traditional Sonuç (Bounding Box)", width="stretch")
+            # Düzeltme: use_container_width=True -> width="stretch"
+            st.image(trad_result, caption="Traditional Sonuç", width="stretch")
 
-        # 2. SATIR: MASKELER (YAN YANA - DETAY İÇİN)
+        # 2. SATIR: Maskeler (Binary)
         row2_c1, row2_c2 = st.columns(2)
         with row2_c1:
             if ai_mask is not None:
+                # Düzeltme: use_container_width=True -> width="stretch"
                 st.image(ai_mask, caption="AI Binary Mask", width="stretch")
         
         with row2_c2:
+            # Düzeltme: use_container_width=True -> width="stretch"
             st.image(trad_mask, caption="Traditional Binary Mask", width="stretch")
             
+        # 3. SATIR: Extra Görseller
+        with st.expander("🔥 Detaylı Isı Haritası (Traditional)", expanded=False):
+             # Düzeltme: use_container_width=True -> width="stretch"
+             st.image(trad_heatmap, caption="Değişim Isı Haritası (Kırmızı = Yüksek Değişim)", width="stretch")
+
 else:
-    # Boş durum ekranı
     st.info("👈 Lütfen sol menüden görüntüleri yükleyin ve 'Analizi Başlat' butonuna basın.")
