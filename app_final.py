@@ -267,7 +267,7 @@ with st.sidebar:
         ai_min_area = st.slider("Min Area", 10, 500, 100, 10)
 
     with st.expander("📐 Trad. Ayarları", expanded=False):
-        trad_min_obj = st.slider("Min Obje", 50, 1000, 300, 50)
+        trad_min_obj = st.slider("Min Pixel", 50, 1000, 300, 50)
         ssim_w = st.slider("SSIM Ağırlık", 0.0, 1.0, 0.6, 0.1)
 
     st.divider()
