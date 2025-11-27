@@ -263,8 +263,8 @@ with st.sidebar:
     
     st.subheader("Parametreler")
     with st.expander("🤖 AI Ayarları", expanded=False):
-        ai_conf_thr = st.slider("Threshold", 0.0, 1.0, 0.15, 0.05)
-        ai_min_area = st.slider("Min Area", 10, 500, 100, 10)
+        ai_conf_thr = st.slider("Confidence Threshold", 0.0, 1.0, 0.15, 0.05)
+        ai_min_area = st.slider("Min Pixel Area", 10, 500, 100, 10)
 
     with st.expander("📐 Trad. Ayarları", expanded=False):
         trad_min_obj = st.slider("Min Pixel", 50, 1000, 300, 50)
@@ -310,8 +310,8 @@ if pre_file and post_file:
         
         # Başlıklar
         col_h1, col_h2 = st.columns(2)
-        col_h1.info(f"🤖 AI Model (Tespit: {ai_count})")
-        col_h2.success(f"📐 Traditional (Tespit: {trad_count})")
+        col_h1.info(f"🤖 AI Model (Bounding Box Sayısı Tespit: {ai_count})")
+        col_h2.success(f"📐 Traditional (Bounding Box Sayısı Tespit: {trad_count})")
 
         # 1. SATIR: Sonuçlar (Box)
         row1_c1, row1_c2 = st.columns(2)
