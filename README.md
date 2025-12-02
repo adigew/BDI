@@ -134,3 +134,25 @@ If you use this code for your research, please cite our paper:
 }
 ```
 
+## How to Run the Web Application
+
+This project includes a Streamlit web application for interactive change detection.
+
+### 1. Install Dependencies
+
+Install the required Python packages using the `requirements.txt` file:
+
+```shell
+pip install -r requirements.txt
+```
+
+### 2. Run the Application
+
+Launch the Streamlit app with the following command:
+
+```shell
+streamlit run app_final.py
+```
+
+The application will open in your web browser. You can then upload "pre" and "post" images to compare them and see the detected changes. The app provides a side-by-side comparison of an AI-based and a traditional computer vision method for change detection.
+
